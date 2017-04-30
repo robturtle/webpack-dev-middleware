@@ -36,7 +36,27 @@ module.exports = function(compiler, options) {
 			return goNext();
 		}
 
-		var filename = getFilenameFromUrl(context.options.publicPath, context.compiler.outputPath, req.url);
+		var filename;
+		if(context.compiler.compilers === undefined) {
+			var outputPath = context.compiler.outputPath;
+			filename = getFilenameFromUrl(context.options.publicPath, outputPath, req.url);
+		} else {
+			filename = context.compiler.compilers.map(function(c) {
+				return getFilenameFromUrl(context.options.publicPath, c.outputPath, req.url);
+			}).find(function(filename) {
+				try {
+					var stat = context.fs.statSync(filename);
+					if(stat.isFile()) {
+						return true;
+					} else if(stat.isDirectory()) {
+						filename = pathJoin(filename, context.options.index || "index.html");
+						return context.fs.statSync(filename).isFile();
+					}
+				} catch(e) {
+					return false;
+				}
+			}) || false;
+		}
 		if(filename === false) return goNext();
 
 
